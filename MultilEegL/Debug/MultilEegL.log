@@ -1,4 +1,4 @@
-﻿Build started 2015/9/24 11:02:37.
+﻿Build started 2015/9/30 23:33:39.
      1>Project "I:\Documents\Visual Studio 2010\Projects\MultilEegL\MultilEegL\MultilEegL.vcxproj" on node 2 (build target(s)).
      1>InitializeBuildStatus:
          Creating "Debug\MultilEegL.unsuccessfulbuild" because "AlwaysCreate" was specified.
@@ -6,9 +6,6 @@
          All outputs are up-to-date.
          C:\Program Files\Microsoft Visual Studio 10.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _WINDOWS /D _DEBUG /D _UNICODE /D UNICODE /D _AFXDLL /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Yu"StdAfx.h" /Fp"Debug\MultilEegL.pch" /Fo"Debug\\" /Fd"Debug\vc100.pdb" /Gd /TP /analyze- /errorReport:prompt MultilEegLDlg.cpp
          MultilEegLDlg.cpp
-     1>i:\documents\visual studio 2010\projects\multileegl\multileegl\multileegldlg.cpp(228): warning C4018: '<' : signed/unsigned mismatch
-     1>i:\documents\visual studio 2010\projects\multileegl\multileegl\multileegldlg.cpp(235): warning C4018: '<' : signed/unsigned mismatch
-     1>i:\documents\visual studio 2010\projects\multileegl\multileegl\multileegldlg.cpp(238): warning C4018: '<' : signed/unsigned mismatch
        ResourceCompile:
          All outputs are up-to-date.
        ManifestResourceCompile:
@@ -18,6 +15,7 @@
          Debug\MultilEegL.exe.embed.manifest.res
          Debug\MultilEegL.obj
          Debug\MultilEegLDlg.obj
+         Debug\SerialPort.obj
          Debug\stdafx.obj
          ..\lib\edk.lib
          ..\lib\edk_utils.lib
@@ -35,4 +33,4 @@
 
 Build succeeded.
 
-Time Elapsed 00:00:02.70
+Time Elapsed 00:00:00.69

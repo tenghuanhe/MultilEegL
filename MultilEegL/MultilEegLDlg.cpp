@@ -7,6 +7,9 @@
 #include "MultilEegLDlg.h"
 #include "afxdialogex.h" 
 #include "emotiv.h"
+#include "SerialPort.h"
+
+#define POSK (float)(144.0/32768.0)
 
 // Global variables
 EmoEngineEventHandle eEvent;
@@ -20,7 +23,13 @@ int state;
 unsigned int channelCount;
 double data[128][22];
 
+CSerialPort port;
+int nport = 1;
+static unsigned char birdgetaddrmodecmd[] = {'O', 0};
+
+void Init();
 UINT EmotivDataThreadProc(LPVOID pParam);
+UINT FobDataThreadProc(LPVOID pParam);
 
 // CAboutDlg dialog used for App About
 
@@ -62,17 +71,11 @@ CMultilEegLDlg::CMultilEegLDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CMultilEegLDlg::IDD, pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
-	//  m_State = _T("");
-	//  m_strState = _T("");
 }
 
 void CMultilEegLDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
-	//  DDX_Text(pDX, IDSTATE, m_State);
-	//  DDX_Control(pDX, IDSTATE, m_State);
-	//  DDX_Control(pDX, IDSTATE, m_State);
-	//  DDX_Text(pDX, IDSTATE, m_strState);
 	DDX_Control(pDX, IDSTATE, m_State);
 }
 
@@ -117,18 +120,7 @@ BOOL CMultilEegLDlg::OnInitDialog()
 
 	// TODO: Add extra initialization here
 
-	eEvent = EE_EmoEngineEventCreate();
-	eState = EE_EmoStateCreate();
-	userID = 0;
-	secs = 1;
-	datarate = 0;
-	readytocollect = false;
-	option = 0;
-	state = 0;
-	channelCount = sizeof(targetChannelList) / sizeof(EE_DataChannel_t);
-
-	if (EE_EngineConnect() != EDK_OK)
-		AfxMessageBox(_T("Error connect to Emotiv!"));
+	Init();
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -149,6 +141,55 @@ void CMultilEegLDlg::OnSysCommand(UINT nID, LPARAM lParam)
 // If you add a minimize button to your dialog, you will need the code below
 //  to draw the icon.  For MFC applications using the document/view model,
 //  this is automatically done for you by the framework.
+
+void Init()
+{
+	// Initializing Emotiv parameters
+	eEvent = EE_EmoEngineEventCreate();
+	eState = EE_EmoStateCreate();
+	userID = 0;
+	secs = 1;
+	datarate = 0;
+	readytocollect = false;
+	option = 0;
+	state = 0;
+
+	channelCount = sizeof(targetChannelList) / sizeof(EE_DataChannel_t);
+
+	// Initializing Flock of birds parameters
+	COMMCONFIG config;
+	CSerialPort::GetDefaultConfig(nport, config);
+
+	port.Open(nport, 9600, CSerialPort::NoParity, 8, CSerialPort::OneStopBit, CSerialPort::XonXoffFlowControl);
+
+	HANDLE hport = port.Detach();
+	port.Attach(hport);
+
+	DWORD dwModemStatus;
+	port.GetModemStatus(dwModemStatus);
+
+	DWORD dwErrors;                      
+	port.ClearError(dwErrors);
+
+	port.SetBreak();
+	port.ClearBreak();
+
+	COMSTAT stat;
+	port.GetStatus(stat);
+
+	COMMTIMEOUTS timeouts;
+	port.GetTimeouts(timeouts);
+
+	port.Setup(10000, 10000);
+
+	port.GetConfig(config);
+
+	config.dcb.BaudRate = 115200;
+	port.SetConfig(config);
+
+	port.Set0WriteTimeout();
+	port.Set0ReadTimeout();
+}
 
 void CMultilEegLDlg::OnPaint()
 {
@@ -185,11 +226,15 @@ HCURSOR CMultilEegLDlg::OnQueryDragIcon()
 void CMultilEegLDlg::OnStart()
 {
 	AfxBeginThread(EmotivDataThreadProc, NULL);
+	AfxBeginThread(FobDataThreadProc, NULL);
 }
 
 UINT EmotivDataThreadProc(LPVOID pParam)
 {
 	CMultilEegLDlg *currDlg = (CMultilEegLDlg *) AfxGetApp()->GetMainWnd();
+	
+	if (EE_EngineConnect() != EDK_OK)
+		return 0;
 	DataHandle hData = EE_DataCreate();
 	EE_DataSetBufferSizeInSec(secs);
 	CString currState;
@@ -225,17 +270,17 @@ UINT EmotivDataThreadProc(LPVOID pParam)
 			if (nSamplesTaken != 0)
 			{
 				double **buffer = new double *[channelCount];
-				for (int i = 0; i < channelCount; i++)
+				for (int i = 0; i < (int)channelCount; i++)
 					buffer[i] = new double[nSamplesTaken];
 
 				if (EDK_OK != EE_DataGetMultiChannels(hData, targetChannelList, channelCount, buffer, nSamplesTaken))
 					continue;
 
 				for (int j = 0; j < (int)nSamplesTaken; j++)
-					for (int i = 0; i < channelCount; i++)
+					for (int i = 0; i < (int)channelCount; i++)
 						data[total + j][i] = buffer[j][i];
 
-				for (int i = 0; i < channelCount; i++)
+				for (int i = 0; i < (int)channelCount; i++)
 					delete buffer[i];
 				delete buffer;
 			}
@@ -246,7 +291,7 @@ UINT EmotivDataThreadProc(LPVOID pParam)
 			{
 				tsecond++;
 				total = 0;
-				currState.Format(_T("Windows taken %d"), tsecond);
+				currState.Format(_T("Acquiring %d 128 data points"), tsecond);
 				currDlg->m_State.SetWindowTextW(currState);
 			}
 		}
@@ -256,3 +301,25 @@ UINT EmotivDataThreadProc(LPVOID pParam)
 
 	return 0;
 }
+
+UINT FobDataThreadProc(LPVOID pParam)
+{
+	// Toggle bird
+	port.SetRTS();
+	port.ClearRTS();
+
+	int n = port.BytesWaiting();
+	if (n > 0)
+		port.ClearReadBuffer();
+	
+	// Get the current Addressing Mode
+	// 	Return Value:
+	//		30 if in Expanded Address Mode
+	// 		14 if in Normal Address Mode
+	// 		FALSE if an Error Occurs
+	port.Write(birdgetaddrmodecmd, 2);
+	
+	
+	return 0;
+}
+

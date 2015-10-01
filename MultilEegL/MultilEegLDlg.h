@@ -31,9 +31,5 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
 	afx_msg void OnStart();
-//	CString m_State;
-//	CEdit m_State;
-//	CStatic m_State;
-//	CString m_strState;
 	CStatic m_State;
 };
